@@ -117,7 +117,7 @@ async function runWizard() {
 
   const sourcePath = await input({
     message:
-      "What's your primary source? \n Drag a text file, a directory path, or a youtube link (experimental) in here, or leave empty/whitespace to open an editor: ",
+      "What's your primary source? \n Drag a text file, a directory path (use --dir or --path flag), or a youtube link (experimental) in here, or leave empty/whitespace to open an editor: ",
     default: wizardState.primarySourcePath || undefined,
     validate: async (filename) => {
       if(filename?.trim()) {
@@ -134,9 +134,14 @@ async function runWizard() {
           return `File not found - tried to load ${filename}. Try again.`;
         } else {
           try {
-            if (fs.lstatSync(parsePlatformIndependentPath(sourcePath)).isDirectory()) {
-              await processDirectory(parsePlatformIndependentPath(sourcePath), wizardState);
-            } else {
+            const parsedPath = parsePlatformIndependentPath(sourcePath);
+            if (sourcePath.startsWith("--dir") || sourcePath.startsWith("--path")) {
+              const directoryPath = sourcePath.split(" ")[1];
+              if (!fs.existsSync(directoryPath) || !fs.lstatSync(directoryPath).isDirectory()) {
+                return `The provided path does not exist or is not a directory: ${directoryPath}. Try again.`;
+              }
+              await processTextFilesInDirectory(directoryPath, wizardState);
+            } else if (fs.lstatSync(parsedPath).isFile()) {
               const dataFromFile = fs.readFileSync(parsePlatformIndependentPath(sourcePath), "utf-8");
               wizardState.loadedPrimarySource = dataFromFile;
               wizardState.primarySourcePath = parsePlatformIndependentPath(sourcePath);
